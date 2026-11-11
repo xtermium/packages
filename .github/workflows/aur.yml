@@ -1,0 +1,58 @@
+# Every hour: bumps both PKGBUILDs (aur/) to the latest release and nightly build (aur/bump.sh), commits the
+# change here, then pushes each package to the AUR where the AUR's copy differs from this one (so a
+# failed push is retried next hour, and the first run publishes both). Needs one secret,
+# AUR_SSH_PRIVATE_KEY: the private half of an SSH key added to the AUR account that maintains
+# both packages.
+name: aur
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 * * * *'
+
+concurrency:
+  group: aur
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  aur:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - run: pacman -Syu --noconfirm --needed git openssh jq
+
+      - uses: actions/checkout@v5
+
+      - name: Bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          useradd -m builder && chown -R builder .
+          su builder -c "GH_TOKEN=$GH_TOKEN aur/bump.sh"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add aur
+          git diff --cached --quiet || { git commit -m "$(git diff --cached --name-only | grep PKGBUILD | xargs -n1 dirname | while read -r p; do echo "$(basename "$p") $(sed -n 's/^pkgver=//p' "$p/PKGBUILD")"; done | paste -sd ';' | sed 's/;/; /g')" && git push; }
+
+      - name: Push to the AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          # Published at https://aur.archlinux.org (SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4).
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes'
+          for p in xtermium-bin xtermium-nightly-bin; do
+            rm -rf "/tmp/$p"
+            git clone -q "ssh://aur@aur.archlinux.org/$p.git" "/tmp/$p"
+            cp "aur/$p/PKGBUILD" "aur/$p/.SRCINFO" "/tmp/$p/"
+            cd "/tmp/$p"
+            git add PKGBUILD .SRCINFO
+            git diff --cached --quiet || { git commit -qm "$(sed -n 's/^pkgver=//p' PKGBUILD)" && git push -q origin HEAD:master && echo "pushed $p"; }
+            cd "$GITHUB_WORKSPACE"
+          done

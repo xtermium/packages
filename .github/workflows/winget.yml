@@ -1,0 +1,63 @@
+# Every hour: when GitHub has a release that winget-pkgs has neither merged nor in an open pull
+# request, opens one for Xtermium.Xtermium with wingetcreate (Microsoft's tool), which reads the new
+# MSI for its hash and ProductCode and copies the rest from the version before. The first version
+# goes in by hand (winget/manifests, see PUBLISHING.md); wingetcreate only updates.
+# Needs one secret, WINGET_TOKEN: a classic personal access token with the public_repo scope, of the
+# GitHub account whose fork of microsoft/winget-pkgs carries the branch (wingetcreate makes the
+# fork if it is missing). Fine-grained tokens don't work with wingetcreate.
+# Polling, not `on: release`: a release that release.yml publishes with GITHUB_TOKEN starts no
+# other workflow, and this keeps the token out of the app repository.
+name: winget
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 * * * *'
+
+concurrency:
+  group: winget
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.c.outputs.version }}
+      date: ${{ steps.c.outputs.date }}
+    steps:
+      - id: c
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rel=$(gh api repos/xtermium/xtermium/releases/latest)
+          v=$(jq -r .tag_name <<<"$rel"); v=${v#v}
+          if gh api "repos/microsoft/winget-pkgs/contents/manifests/x/Xtermium/Xtermium/$v" --silent 2>/dev/null; then
+            echo "$v is in winget-pkgs"
+          elif [ "$(gh pr list -R microsoft/winget-pkgs --state open --search "Xtermium.Xtermium $v in:title" --json number --jq length)" != 0 ]; then
+            echo "$v has an open pull request"
+          elif ! jq -e --arg n "xtermium_${v}_x64_en-US.msi" '.assets[] | select(.name == $n)' <<<"$rel" > /dev/null; then
+            echo "$v has no MSI yet"
+          else
+            echo "version=$v" >> "$GITHUB_OUTPUT"
+            echo "date=$(jq -r .published_at <<<"$rel" | cut -c1-10)" >> "$GITHUB_OUTPUT"
+          fi
+
+  submit:
+    needs: check
+    if: needs.check.outputs.version != ''
+    runs-on: windows-latest
+    env:
+      V: ${{ needs.check.outputs.version }}
+      DATE: ${{ needs.check.outputs.date }}
+    steps:
+      - run: |
+          Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe -OutFile wingetcreate.exe
+          .\wingetcreate.exe update Xtermium.Xtermium --version $env:V `
+            --urls "https://github.com/xtermium/xtermium/releases/download/v$env:V/xtermium_$($env:V)_x64_en-US.msi" `
+            --release-notes-url "https://github.com/xtermium/xtermium/releases/tag/v$env:V" `
+            --release-date $env:DATE `
+            --prtitle "New version: Xtermium.Xtermium version $env:V" `
+            --submit --no-open --token "${{ secrets.WINGET_TOKEN }}"

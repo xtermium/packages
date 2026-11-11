@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>xtermium</id>
+    <version>0.9.0</version>
+    <packageSourceUrl>https://github.com/xtermium/packages/tree/main/choco/xtermium</packageSourceUrl>
+    <owners>xtermium</owners>
+    <title>xtermium</title>
+    <authors>xtermium contributors</authors>
+    <projectUrl>https://xtermium.com</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/xtermium/xtermium/v0.9.0/icons/128x128.png</iconUrl>
+    <licenseUrl>https://github.com/xtermium/xtermium/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/xtermium/xtermium</projectSourceUrl>
+    <docsUrl>https://github.com/xtermium/xtermium/wiki</docsUrl>
+    <bugTrackerUrl>https://github.com/xtermium/xtermium/issues</bugTrackerUrl>
+    <tags>terminal ssh sftp rdp session-manager foss cross-platform</tags>
+    <summary>Cross-platform terminal and session manager with web/file browsers and AI.</summary>
+    <description><![CDATA[Cross-platform terminal and session manager with web/file browsers and AI. Every connection you have, in one window. Written in Rust and Svelte.
+
+This package runs the release's MSI installer (64-bit, for all users).
+
+Sessions, tabs, trusted host keys and settings live in `%USERPROFILE%\.xtermium` (or wherever the `XTERMIUM_HOME` environment variable points), so upgrades and uninstalls keep them. Set a recovery passphrase (Settings > Security): it opens them if the keychain entry is lost.
+]]></description>
+    <releaseNotes>https://github.com/xtermium/xtermium/releases/tag/v0.9.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

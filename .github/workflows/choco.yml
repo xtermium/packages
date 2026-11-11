@@ -1,0 +1,61 @@
+# Every hour: when GitHub has a release newer than choco/xtermium, points the package at its MSI
+# (the sha256 is the digest GitHub computed on upload), packs it, pushes it to the Chocolatey
+# Community Repository, and commits the change here. A failed push commits nothing, so the next
+# run tries again. Needs one secret, CHOCO_API_KEY (community.chocolatey.org > Account > API Keys).
+# Releases only: see PUBLISHING.md for why nightly builds don't go to the community repository.
+name: choco
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '50 * * * *'
+
+concurrency:
+  group: choco
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.c.outputs.version }}
+      sha: ${{ steps.c.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: c
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rel=$(gh api repos/xtermium/xtermium/releases/latest)
+          v=$(jq -r .tag_name <<<"$rel"); v=${v#v}
+          sha=$(jq -r --arg n "xtermium_${v}_x64_en-US.msi" '.assets[] | select(.name == $n) | .digest // empty' <<<"$rel" | sed -n 's/^sha256://p')
+          if grep -q "<version>$v</version>" choco/xtermium/xtermium.nuspec; then echo "$v is pushed already"
+          elif [ -z "$sha" ]; then echo "$v has no MSI yet"
+          else echo "version=$v" >> "$GITHUB_OUTPUT"; echo "sha=$sha" >> "$GITHUB_OUTPUT"; fi
+
+  push:
+    needs: check
+    if: needs.check.outputs.version != ''
+    runs-on: windows-latest
+    env:
+      V: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          cd choco/xtermium
+          old=$(sed -n 's|.*<version>\(.*\)</version>.*|\1|p' xtermium.nuspec)
+          sed -i "s/$old/$V/g" xtermium.nuspec tools/chocolateyInstall.ps1
+          sed -i "s/checksum64     = '.*'/checksum64     = '$SHA'/" tools/chocolateyInstall.ps1
+          choco pack
+          choco push "xtermium.$V.nupkg" --source https://push.chocolatey.org/ --api-key "${{ secrets.CHOCO_API_KEY }}"
+          rm "xtermium.$V.nupkg"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "choco xtermium $V" && git push
