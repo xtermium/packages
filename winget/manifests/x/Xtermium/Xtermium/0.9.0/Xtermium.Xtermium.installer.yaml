@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
 PackageIdentifier: Xtermium.Xtermium
 PackageVersion: 0.9.0
@@ -19,4 +19,4 @@ Installers:
   InstallerSha256: 95A2C786BF25B5944FD1D90F34A2208D8B16F7CC2036CD87973165E8EA97275D
   ProductCode: '{6DC6F649-0807-463A-9A6F-FBBBE01BF43A}'
 ManifestType: installer
-ManifestVersion: 1.28.0
+ManifestVersion: 1.12.0
