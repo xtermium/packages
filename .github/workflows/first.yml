@@ -9,18 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  choco:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v5
-      - run: |
-          cd choco/xtermium
-          choco pack
-          choco push xtermium.*.nupkg --source https://push.chocolatey.org/ --api-key "${{ secrets.CHOCO_API_KEY }}"
-
   winget:
     runs-on: windows-latest
     steps:
