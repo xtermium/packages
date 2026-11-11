@@ -2,9 +2,10 @@
 # request, opens one for Xtermium.Xtermium with wingetcreate (Microsoft's tool), which reads the new
 # MSI for its hash and ProductCode and copies the rest from the version before. The first version
 # goes in by hand (winget/manifests, see PUBLISHING.md); wingetcreate only updates.
-# Needs one secret, WINGET_TOKEN: a classic personal access token with the public_repo scope, of the
-# GitHub account whose fork of microsoft/winget-pkgs carries the branch (wingetcreate makes the
-# fork if it is missing). Fine-grained tokens don't work with wingetcreate.
+# Needs one secret, WINGET_TOKEN: a classic personal access token with the public_repo scope
+# (fine-grained tokens don't work with wingetcreate). That scope writes to every public repository
+# its account can, so the token belongs to an account made only for this, which can write to
+# nothing but its own fork of microsoft/winget-pkgs (wingetcreate makes the fork if it is missing).
 # Polling, not `on: release`: a release that release.yml publishes with GITHUB_TOKEN starts no
 # other workflow, and this keeps the token out of the app repository.
 name: winget
@@ -52,6 +53,8 @@ jobs:
     env:
       V: ${{ needs.check.outputs.version }}
       DATE: ${{ needs.check.outputs.date }}
+      # wingetcreate reads the token from here; on the command line it could end up in a log.
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
       - run: |
           Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe -OutFile wingetcreate.exe
@@ -60,4 +63,4 @@ jobs:
             --release-notes-url "https://github.com/xtermium/xtermium/releases/tag/v$env:V" `
             --release-date $env:DATE `
             --prtitle "New version: Xtermium.Xtermium version $env:V" `
-            --submit --no-open --token "${{ secrets.WINGET_TOKEN }}"
+            --submit --no-open
