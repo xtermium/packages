@@ -1,0 +1,53 @@
+# Checks the three publishing secrets without publishing anything: run by hand after setting or
+# changing one (Actions › check › Run workflow). Each step says what it found and fails if the
+# secret can't do its job.
+name: check
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      # The key signs in to the AUR: `help` lists the commands the account may run.
+      - name: AUR key
+        if: always()
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' > ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/aur > /dev/null && echo "the key parses"
+          ssh -i ~/.ssh/aur -o IdentitiesOnly=yes -o BatchMode=yes aur@aur.archlinux.org help 2>&1 | head -5
+          # Are the names free, or ours already?
+          for p in xtermium-bin xtermium-nightly-bin; do
+            curl -s "https://aur.archlinux.org/rpc/v5/info?arg[]=$p" | jq -r --arg p "$p" '"\($p): " + (if .resultcount == 0 then "not on the AUR yet" else "maintainer \(.results[0].Maintainer)" end)'
+          done
+
+      # A classic token with public_repo, as wingetcreate needs.
+      - name: winget token
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          curl -sS -D headers -o user.json -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user
+          head -1 headers
+          echo "account: $(jq -r .login user.json)"
+          scopes=$(grep -i '^x-oauth-scopes:' headers | tr -d '\r' || true)
+          echo "${scopes:-no scopes header: a fine-grained token, which wingetcreate can not use}"
+          echo "$scopes" | grep -Eq 'public_repo|[: ,]repo(,|$)'
+          echo "fork: $(curl -s -o /dev/null -w '%{http_code}' "https://api.github.com/repos/$(jq -r .login user.json)/winget-pkgs") (200: there, 404: wingetcreate makes it)"
+
+      # Chocolatey has no call that tries a key without pushing: only its shape and the account's
+      # page can be looked at.
+      - name: Chocolatey key
+        if: always()
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          echo "$CHOCO_API_KEY" | grep -Eq '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' && echo "the key has the shape of a Chocolatey API key"
+          echo "xtermium on chocolatey.org: $(curl -s -o /dev/null -w '%{http_code}' https://community.chocolatey.org/packages/xtermium) (404: not pushed yet)"
