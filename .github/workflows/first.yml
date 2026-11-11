@@ -1,0 +1,32 @@
+# One-off, run by hand: the first submissions of the committed 0.9.0 packages to Chocolatey and
+# winget, which choco.yml and winget.yml (updates only) can't make. Removed once both are in.
+name: first
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  choco:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          cd choco/xtermium
+          choco pack
+          choco push xtermium.*.nupkg --source https://push.chocolatey.org/ --api-key "${{ secrets.CHOCO_API_KEY }}"
+
+  winget:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          Invoke-WebRequest https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe -OutFile wingetcreate.exe
+          .\wingetcreate.exe submit winget\manifests\x\Xtermium\Xtermium\0.9.0 `
+            --prtitle "New package: Xtermium.Xtermium version 0.9.0" `
+            --no-open --token "${{ secrets.WINGET_TOKEN }}"
