@@ -5,10 +5,11 @@
     <version>0.9.0</version>
     <packageSourceUrl>https://github.com/xtermium/packages/tree/main/choco/xtermium</packageSourceUrl>
     <owners>xtermium</owners>
-    <title>xtermium</title>
+    <title>xtermium (Install)</title>
     <authors>xtermium contributors</authors>
+    <copyright>Copyright 2026 Sotirios Roussis</copyright>
     <projectUrl>https://xtermium.com</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/xtermium/xtermium/v0.9.0/icons/128x128.png</iconUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/xtermium/xtermium@v0.9.0/icons/128x128.png</iconUrl>
     <licenseUrl>https://github.com/xtermium/xtermium/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/xtermium/xtermium</projectSourceUrl>
