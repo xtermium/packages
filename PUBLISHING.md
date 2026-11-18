@@ -21,7 +21,7 @@ Every workflow takes the new version from the GitHub API (`releases/latest`, or 
 2. Settings › Actions › General › Workflow permissions: **Read and write**. No secrets: `bump.yml` uses `GITHUB_TOKEN`.
 3. Try it on a Mac: `brew tap xtermium/tap && brew install --cask xtermium`, then `brew audit --cask --strict --online xtermium/tap/xtermium xtermium/tap/xtermium@nightly` (the audit only works on macOS).
 
-Then: a release or nightly build reaches the casks within the hour. Until the .dmg is signed with a Developer ID and notarized, users clear the quarantine flag after each install (the tap README says how); Homebrew 5 removed `--no-quarantine`. Submitting to homebrew/cask itself instead of a tap needs a signed app (it disables casks that fail Gatekeeper since September 2026) and some popularity; not needed for the tap.
+Then: a release or nightly build reaches the casks within the hour. The .dmg is signed with a Developer ID and notarized (since v0.10.0), so Gatekeeper opens a cask install with no extra step. Submitting to homebrew/cask itself instead of a tap needs a signed app (it disables casks that fail Gatekeeper since September 2026), which it now is, and some popularity; not needed for the tap.
 
 ## AUR: once
 
